@@ -1,0 +1,16 @@
+# 缓存文件（每次练习自动生成）
+cache/
+缓存文件_*.json
+
+# WorkBuddy 内部文件
+.workbuddy/
+
+# 临时文件
+_t_*.js
+_t_*.html
+_chk*.js
+
+# 系统文件
+Thumbs.db
+.DS_Store
+*.log
