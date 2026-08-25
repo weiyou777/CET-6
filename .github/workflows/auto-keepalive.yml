@@ -1,0 +1,53 @@
+# ============================================================
+# 自动续签 / 心跳保活工作流
+# ------------------------------------------------------------
+# 作用：每半个月自动向仓库提交一次"心跳"（时间戳文件），
+#       确保仓库始终处于活跃状态，避免任何"长期不活跃被清空"
+#       的隐患（即便 GitHub 实际上不会因不活跃删除仓库，
+#       这也是一份双保险）。
+#
+# 触发方式：
+#   1. 定时：每月 1 日、15 日 04:23 UTC 自动运行（远小于 30 天）
+#   2. 手动：在仓库 Actions 页面点 "Run workflow" 立即触发
+#
+# 注意：本工作流只写时间戳，不动题库内容。
+#       真正的时事题更新仍需你让我跑"更新题库"管线。
+# ============================================================
+
+name: 自动续签·心跳保活
+
+on:
+  schedule:
+    # 每月 1 日、15 日 04:23 UTC 自动运行（约每 15 天一次，远小于 30 天窗口）
+    - cron: '23 4 1,15 * *'
+  # 允许在 Actions 页面手动点一下立即运行
+  workflow_dispatch: {}
+
+# 赋予工作流写入仓库内容的权限（否则无法自动提交）
+permissions:
+  contents: write
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+        with:
+          # 取完整历史，避免浅克隆导致推送冲突
+          fetch-depth: 0
+
+      - name: 写入心跳时间戳
+        run: |
+          echo "last_active=$(date -u +%Y-%m-%dT%H:%M:%SZ)" > .keepalive
+          echo "auto_keepalive_by_github_actions" >> .keepalive
+          echo "心跳写入成功：$(date -u)"
+
+      - name: 提交并推送心跳
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .keepalive
+          # 若时间戳无变化则不强行提交（首次一定会提交）
+          git commit -m "chore: 自动心跳保活 $(date -u +%Y-%m-%d)" || echo "本次无可提交变化"
+          git push
